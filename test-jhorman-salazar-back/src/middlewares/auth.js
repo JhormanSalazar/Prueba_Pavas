@@ -2,8 +2,11 @@ const jwt = require("jsonwebtoken");
 
 const auth = (req, res, next) => {
   const header = req.headers.authorization;
+
   if (!header || !header.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Token no proporcionado" });
+    return res
+      .status(401)
+      .json({ error: "No autorizado: Token no proporcionado o inválido" });
   }
 
   const token = header.split(" ")[1];
@@ -13,7 +16,12 @@ const auth = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Token inválido o expirado" });
+    const message =
+      err.name === "TokenExpiredError"
+        ? "No autorizado: El token ha expirado"
+        : "No autorizado: Token no proporcionado o inválido";
+
+    return res.status(401).json({ error: message });
   }
 };
 

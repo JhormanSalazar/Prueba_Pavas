@@ -19,8 +19,13 @@ const Login = () => {
     try {
       await login(email, password);
       navigate("/", { replace: true });
-    } catch {
-      setError("Credenciales incorrectas. Intenta de nuevo.");
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429) {
+        setError("Demasiados intentos. Por favor, espera 15 minutos antes de intentar de nuevo.");
+      } else {
+        setError(err.response?.data?.error ?? "Credenciales incorrectas. Intenta de nuevo.");
+      }
     } finally {
       setLoading(false);
     }
