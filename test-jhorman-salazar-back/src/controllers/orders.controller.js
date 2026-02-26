@@ -1,4 +1,5 @@
 const ordersService = require("../services/orders.service");
+const statusHistoryService = require("../services/statusHistory.service");
 
 const getOrders = (req, res, next) => {
   try {
@@ -27,9 +28,10 @@ const createOrder = (req, res, next) => {
   }
 };
 
-const changeStatus = (req, res, next) => {
+const changeStatus = async (req, res, next) => {
   try {
-    const order = ordersService.changeOrderStatus(req.params.id, req.body.newStatus);
+    const { newStatus, note } = req.body;
+    const order = await ordersService.changeOrderStatus(req.params.id, newStatus, req.user, note);
     res.json(order);
   } catch (err) {
     next(err);
@@ -45,4 +47,15 @@ const addItem = (req, res, next) => {
   }
 };
 
-module.exports = { getOrders, getOrderById, createOrder, changeStatus, addItem };
+const getStatusHistory = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const history = await statusHistoryService.getHistoryByOrderId(req.params.id, { page, limit });
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getOrders, getOrderById, createOrder, changeStatus, addItem, getStatusHistory };

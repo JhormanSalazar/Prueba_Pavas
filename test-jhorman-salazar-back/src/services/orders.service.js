@@ -1,5 +1,6 @@
 const { orders, motos } = require("../data/store");
-const { VALID_TRANSITIONS, ORDER_STATES, ITEM_TYPES } = require("../constants/orderStates");
+const { VALID_TRANSITIONS, ORDER_STATES, ITEM_TYPES, MECANICO_ALLOWED_TARGETS } = require("../constants/orderStates");
+const statusHistoryService = require("./statusHistory.service");
 
 const findOrderById = (id) => orders.find((o) => o.id === parseInt(id));
 
@@ -10,7 +11,7 @@ const createOrder = ({ motoId, placa, faultDescription }) => {
     throw { status: 400, message: "motoId (o placa) y faultDescription son requeridos" };
   }
 
-  const moto = motoId 
+  const moto = motoId
     ? motos.find((m) => m.id === parseInt(motoId))
     : motos.find((m) => m.placa === placa);
   if (!moto) throw { status: 404, message: "Moto no encontrada" };
@@ -30,7 +31,7 @@ const createOrder = ({ motoId, placa, faultDescription }) => {
   return newOrder;
 };
 
-const changeOrderStatus = (id, newStatus) => {
+const changeOrderStatus = async (id, newStatus, user, note) => {
   const order = findOrderById(id);
   if (!order) throw { status: 404, message: "Orden no encontrada" };
 
@@ -38,14 +39,46 @@ const changeOrderStatus = (id, newStatus) => {
     throw { status: 400, message: `Estado inválido: ${newStatus}` };
   }
 
-  if (!VALID_TRANSITIONS[order.estado].includes(newStatus)) {
+  // Regla 1: No registrar si from == to
+  if (order.estado === newStatus) {
+    throw { status: 400, message: "El estado nuevo es igual al actual" };
+  }
+
+  // Regla 2: Si la orden está ENTREGADA, solo ADMIN puede revertir
+  if (order.estado === ORDER_STATES.ENTREGADA && user.role !== "ADMIN") {
+    throw { status: 403, message: "Solo un ADMIN puede modificar una orden ENTREGADA" };
+  }
+
+  // Regla 3 y 4: MECANICO solo puede cambiar a DIAGNOSTICO, EN_PROCESO, LISTA
+  if (user.role === "MECANICO" && !MECANICO_ALLOWED_TARGETS.includes(newStatus)) {
     throw {
-      status: 400,
-      message: `Transición inválida: ${order.estado} → ${newStatus}`,
+      status: 403,
+      message: `Un MECÁNICO no puede cambiar el estado a ${newStatus}`,
     };
   }
 
+  // Validar transición general (excepto ADMIN revirtiendo ENTREGADA)
+  if (order.estado !== ORDER_STATES.ENTREGADA) {
+    if (!VALID_TRANSITIONS[order.estado].includes(newStatus)) {
+      throw {
+        status: 400,
+        message: `Transición inválida: ${order.estado} → ${newStatus}`,
+      };
+    }
+  }
+
+  const fromStatus = order.estado;
   order.estado = newStatus;
+
+  // Registrar en historial
+  await statusHistoryService.addHistoryEntry({
+    workOrderId: order.id,
+    fromStatus,
+    toStatus: newStatus,
+    note: note || null,
+    changedByUserId: user.id,
+  });
+
   return order;
 };
 

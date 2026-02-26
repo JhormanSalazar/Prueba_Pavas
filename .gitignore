@@ -26,3 +26,8 @@ yarn-error.log*
 # Logs de base de datos o temporales
 *.log
 **/tmp/
+
+# Claude / Anthropic / Copilot (Archivos temporales)
+tmpclaude-*
+.anthropic/
+.claude/
