@@ -15,8 +15,9 @@ const OrderDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [order, setOrder]   = useState(null);
-  const [error, setError]   = useState(null);
+  const [order, setOrder]       = useState(null);
+  const [error, setError]       = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -32,7 +33,8 @@ const OrderDetail = () => {
   const handleChangeStatus = async (newStatus, note) => {
     try {
       await ordersApi.changeStatus(id, newStatus, note);
-      fetchOrder();
+      await fetchOrder();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       alert(err.response?.data?.error ?? 'Error al cambiar estado.');
     }
@@ -87,7 +89,7 @@ const OrderDetail = () => {
 
       {/* Historial de cambios */}
       <Section title="Historial de Cambios">
-        <StatusHistory orderId={id} />
+        <StatusHistory orderId={id} refreshKey={refreshKey} />
       </Section>
     </div>
   );

@@ -2,17 +2,18 @@ import { useState, useEffect } from "react";
 import { ordersApi } from "../../api/orders.api";
 import StatusBadge from "../shared/StatusBadge";
 
-const StatusHistory = ({ orderId }) => {
+const StatusHistory = ({ orderId, refreshKey = 0 }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     ordersApi
       .getHistory(orderId)
       .then((res) => setHistory(res.data.data ?? []))
       .catch(() => setHistory([]))
       .finally(() => setLoading(false));
-  }, [orderId]);
+  }, [orderId, refreshKey]);
 
   if (loading) {
     return <p className="text-sm text-gray-400">Cargando historial...</p>;

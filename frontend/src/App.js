@@ -44,10 +44,10 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 h-screen overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-8">
           <Routes>
             {/* Rutas protegidas - cualquier usuario autenticado */}

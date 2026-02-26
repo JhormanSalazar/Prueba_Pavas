@@ -46,7 +46,7 @@ const Sidebar = () => {
   const isAdmin = user.role === "ADMIN";
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col shadow-sm">
+    <aside className="w-64 bg-white border-r border-gray-200 h-screen sticky top-0 flex flex-col shadow-sm overflow-hidden">
       {/* Header */}
       <div className="px-5 py-5 border-b border-gray-200">
         <div className="flex items-center gap-2">
