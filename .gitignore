@@ -1,0 +1,28 @@
+# Dependencias (Cubre raíz y subcarpetas)
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno y secretos
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+
+# Producción / Build (React)
+**/build/
+**/dist/
+**/out/
+
+# IDEs y Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs de base de datos o temporales
+*.log
+**/tmp/
