@@ -1,38 +1,50 @@
-const db = require("../database/db");
+const prisma = require("../lib/prisma");
 
 const addHistoryEntry = async ({ workOrderId, fromStatus, toStatus, note, changedByUserId }) => {
-  const [result] = await db.query(
-    `INSERT INTO work_order_status_history
-     (work_order_id, from_status, to_status, note, changed_by_user_id)
-     VALUES (?, ?, ?, ?, ?)`,
-    [workOrderId, fromStatus, toStatus, note || null, changedByUserId]
-  );
+  const entry = await prisma.workOrderStatusHistory.create({
+    data: {
+      workOrderId: Number(workOrderId),
+      fromStatus,
+      toStatus,
+      note: note || null,
+      changedByUserId: Number(changedByUserId),
+    },
+    select: { id: true, workOrderId: true, fromStatus: true, toStatus: true, note: true, changedByUserId: true },
+  });
 
-  return { id: result.insertId, workOrderId, fromStatus, toStatus, note, changedByUserId };
+  return entry;
 };
 
 const getHistoryByOrderId = async (workOrderId, { page = 1, limit = 100 } = {}) => {
-  const offset = (page - 1) * limit;
+  const where = { workOrderId: Number(workOrderId) };
+  const skip = (page - 1) * limit;
 
-  const [countRows] = await db.query(
-    "SELECT COUNT(*) AS total FROM work_order_status_history WHERE work_order_id = ?",
-    [workOrderId]
-  );
-  const total = countRows[0].total;
+  const [total, rows] = await Promise.all([
+    prisma.workOrderStatusHistory.count({ where }),
+    prisma.workOrderStatusHistory.findMany({
+      where,
+      include: {
+        changedBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+  ]);
 
-  const [rows] = await db.query(
-    `SELECT h.id, h.work_order_id, h.from_status, h.to_status, h.note,
-            h.changed_by_user_id, u.name AS changed_by_name, h.created_at
-     FROM work_order_status_history h
-     JOIN users u ON u.id = h.changed_by_user_id
-     WHERE h.work_order_id = ?
-     ORDER BY h.created_at DESC
-     LIMIT ? OFFSET ?`,
-    [workOrderId, limit, offset]
-  );
+  const data = rows.map((h) => ({
+    id: h.id,
+    work_order_id: h.workOrderId,
+    from_status: h.fromStatus,
+    to_status: h.toStatus,
+    note: h.note,
+    changed_by_user_id: h.changedByUserId,
+    changed_by_name: h.changedBy.name,
+    created_at: h.createdAt,
+  }));
 
   return {
-    data: rows,
+    data,
     pagination: {
       page,
       limit,

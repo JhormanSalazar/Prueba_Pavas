@@ -1,17 +1,18 @@
 const ordersService = require("../services/orders.service");
 const statusHistoryService = require("../services/statusHistory.service");
 
-const getOrders = (req, res, next) => {
+const getOrders = async (req, res, next) => {
   try {
-    res.json(ordersService.getAllOrders());
+    const orders = await ordersService.getAllOrders();
+    res.json(orders);
   } catch (err) {
     next(err);
   }
 };
 
-const getOrderById = (req, res, next) => {
+const getOrderById = async (req, res, next) => {
   try {
-    const order = ordersService.findOrderById(req.params.id);
+    const order = await ordersService.findOrderById(req.params.id);
     if (!order) return res.status(404).json({ error: "Orden no encontrada" });
     res.json(order);
   } catch (err) {
@@ -19,9 +20,9 @@ const getOrderById = (req, res, next) => {
   }
 };
 
-const createOrder = (req, res, next) => {
+const createOrder = async (req, res, next) => {
   try {
-    const order = ordersService.createOrder(req.body);
+    const order = await ordersService.createOrder(req.body);
     res.status(201).json(order);
   } catch (err) {
     next(err);
@@ -38,9 +39,9 @@ const changeStatus = async (req, res, next) => {
   }
 };
 
-const addItem = (req, res, next) => {
+const addItem = async (req, res, next) => {
   try {
-    const order = ordersService.addItemToOrder(req.params.id, req.body);
+    const order = await ordersService.addItemToOrder(req.params.id, req.body);
     res.status(201).json(order);
   } catch (err) {
     next(err);

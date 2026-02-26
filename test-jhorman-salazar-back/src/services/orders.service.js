@@ -1,23 +1,94 @@
-const { orders, motos } = require("../data/store");
+const prisma = require("../lib/prisma");
 const { VALID_TRANSITIONS, ORDER_STATES, ITEM_TYPES, MECANICO_ALLOWED_TARGETS } = require("../constants/orderStates");
 const statusHistoryService = require("./statusHistory.service");
 
-const findOrderById = (id) => orders.find((o) => o.id === parseInt(id));
+// ─── Helpers ────────────────────────────────────────────────
 
-const getAllOrders = () => orders;
+const findOrderById = async (id) => {
+  const order = await prisma.workOrder.findUnique({
+    where: { id: Number(id) },
+    include: {
+      moto: { select: { placa: true, marca: true } },
+      items: { orderBy: { id: "asc" } },
+    },
+  });
 
-const createOrder = ({ motoId, placa, faultDescription }) => {
+  if (!order) return null;
+
+  const items = order.items.map((i) => ({
+    id: i.id,
+    type: i.type,
+    description: i.description,
+    count: Number(i.count),
+    unitValue: Number(i.unitValue),
+  }));
+
+  const total = items.reduce((acc, i) => acc + i.count * i.unitValue, 0);
+
+  return {
+    id: order.id,
+    motoId: order.motoId,
+    placa: order.moto.placa,
+    marca: order.moto.marca,
+    faultDescription: order.faultDescription,
+    estado: order.estado,
+    items,
+    total,
+  };
+};
+
+// ─── Public API ─────────────────────────────────────────────
+
+const getAllOrders = async () => {
+  const orders = await prisma.workOrder.findMany({
+    include: {
+      moto: { select: { placa: true, marca: true } },
+      items: { select: { count: true, unitValue: true } },
+    },
+    orderBy: { id: "desc" },
+  });
+
+  return orders.map((wo) => {
+    const total = wo.items.reduce(
+      (acc, i) => acc + Number(i.count) * Number(i.unitValue),
+      0
+    );
+    return {
+      id: wo.id,
+      motoId: wo.motoId,
+      placa: wo.moto.placa,
+      marca: wo.moto.marca,
+      faultDescription: wo.faultDescription,
+      estado: wo.estado,
+      total,
+    };
+  });
+};
+
+const createOrder = async ({ motoId, placa, faultDescription }) => {
   if ((!motoId && !placa) || !faultDescription) {
     throw { status: 400, message: "motoId (o placa) y faultDescription son requeridos" };
   }
 
-  const moto = motoId
-    ? motos.find((m) => m.id === parseInt(motoId))
-    : motos.find((m) => m.placa === placa);
+  // Buscar moto por id o por placa
+  const where = motoId ? { id: Number(motoId) } : { placa };
+  const moto = await prisma.moto.findFirst({
+    where,
+    select: { id: true, placa: true, marca: true },
+  });
+
   if (!moto) throw { status: 404, message: "Moto no encontrada" };
 
-  const newOrder = {
-    id: orders.length + 1,
+  const order = await prisma.workOrder.create({
+    data: {
+      motoId: moto.id,
+      faultDescription,
+      estado: ORDER_STATES.RECIBIDA,
+    },
+  });
+
+  return {
+    id: order.id,
     motoId: moto.id,
     placa: moto.placa,
     marca: moto.marca,
@@ -26,13 +97,14 @@ const createOrder = ({ motoId, placa, faultDescription }) => {
     items: [],
     total: 0,
   };
-
-  orders.push(newOrder);
-  return newOrder;
 };
 
 const changeOrderStatus = async (id, newStatus, user, note) => {
-  const order = findOrderById(id);
+  const order = await prisma.workOrder.findUnique({
+    where: { id: Number(id) },
+    select: { id: true, estado: true },
+  });
+
   if (!order) throw { status: 404, message: "Orden no encontrada" };
 
   if (!ORDER_STATES[newStatus]) {
@@ -68,22 +140,30 @@ const changeOrderStatus = async (id, newStatus, user, note) => {
   }
 
   const fromStatus = order.estado;
-  order.estado = newStatus;
+
+  await prisma.workOrder.update({
+    where: { id: Number(id) },
+    data: { estado: newStatus },
+  });
 
   // Registrar en historial
   await statusHistoryService.addHistoryEntry({
-    workOrderId: order.id,
+    workOrderId: id,
     fromStatus,
     toStatus: newStatus,
     note: note || null,
     changedByUserId: user.id,
   });
 
-  return order;
+  return findOrderById(id);
 };
 
-const addItemToOrder = (id, { type, description, count, unitValue }) => {
-  const order = findOrderById(id);
+const addItemToOrder = async (id, { type, description, count, unitValue }) => {
+  const order = await prisma.workOrder.findUnique({
+    where: { id: Number(id) },
+    select: { id: true },
+  });
+
   if (!order) throw { status: 404, message: "Orden no encontrada" };
 
   if (!type || !description || count == null || unitValue == null) {
@@ -98,18 +178,17 @@ const addItemToOrder = (id, { type, description, count, unitValue }) => {
     throw { status: 400, message: "count y unitValue deben ser mayores a 0" };
   }
 
-  const newItem = {
-    id: order.items.length + 1,
-    type,
-    description,
-    count: parseFloat(count),
-    unitValue: parseFloat(unitValue),
-  };
+  await prisma.workOrderItem.create({
+    data: {
+      workOrderId: Number(id),
+      type,
+      description,
+      count: parseFloat(count),
+      unitValue: parseFloat(unitValue),
+    },
+  });
 
-  order.items.push(newItem);
-  order.total = order.items.reduce((acc, item) => acc + item.count * item.unitValue, 0);
-
-  return order;
+  return findOrderById(id);
 };
 
 module.exports = { getAllOrders, createOrder, changeOrderStatus, addItemToOrder, findOrderById };

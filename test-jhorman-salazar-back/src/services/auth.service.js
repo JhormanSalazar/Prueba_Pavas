@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const db = require("../database/db");
+const prisma = require("../lib/prisma");
 
 const SALT_ROUNDS = 10;
 
@@ -12,19 +12,19 @@ const register = async ({ name, email, password, role }) => {
   const validRoles = ["ADMIN", "MECANICO"];
   const userRole = role && validRoles.includes(role) ? role : "MECANICO";
 
-  const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
-  if (existing.length > 0) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
     throw { status: 400, message: "El email ya está registrado" };
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const [result] = await db.query(
-    "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
-    [name, email, passwordHash, userRole]
-  );
+  const user = await prisma.user.create({
+    data: { name, email, passwordHash, role: userRole },
+    select: { id: true, name: true, email: true, role: true },
+  });
 
-  return { id: result.insertId, name, email, role: userRole };
+  return user;
 };
 
 const login = async ({ email, password }) => {
@@ -32,22 +32,20 @@ const login = async ({ email, password }) => {
     throw { status: 400, message: "email y password son requeridos" };
   }
 
-  const [rows] = await db.query(
-    "SELECT id, name, email, password_hash, role, active FROM users WHERE email = ?",
-    [email]
-  );
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, name: true, email: true, passwordHash: true, role: true, active: true },
+  });
 
-  if (rows.length === 0) {
+  if (!user) {
     throw { status: 401, message: "Credenciales inválidas" };
   }
-
-  const user = rows[0];
 
   if (!user.active) {
     throw { status: 401, message: "Cuenta desactivada" };
   }
 
-  const match = await bcrypt.compare(password, user.password_hash);
+  const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) {
     throw { status: 401, message: "Credenciales inválidas" };
   }
@@ -65,35 +63,41 @@ const login = async ({ email, password }) => {
 };
 
 const getMe = async (userId) => {
-  const [rows] = await db.query(
-    "SELECT id, name, email, role, active, created_at FROM users WHERE id = ?",
-    [userId]
-  );
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) },
+    select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
+  });
 
-  if (rows.length === 0) {
+  if (!user) {
     throw { status: 404, message: "Usuario no encontrado" };
   }
 
-  return rows[0];
+  return user;
 };
 
 const getAllUsers = async () => {
-  const [rows] = await db.query(
-    "SELECT id, name, email, role, active, created_at FROM users"
-  );
-  return rows;
+  return prisma.user.findMany({
+    select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
+  });
 };
 
 const toggleUserActive = async (userId) => {
-  const [rows] = await db.query("SELECT id, active FROM users WHERE id = ?", [userId]);
-  if (rows.length === 0) {
+  const user = await prisma.user.findUnique({
+    where: { id: Number(userId) },
+    select: { id: true, active: true },
+  });
+
+  if (!user) {
     throw { status: 404, message: "Usuario no encontrado" };
   }
 
-  const newActive = !rows[0].active;
-  await db.query("UPDATE users SET active = ? WHERE id = ?", [newActive, userId]);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { active: !user.active },
+    select: { id: true, active: true },
+  });
 
-  return { id: userId, active: newActive };
+  return updated;
 };
 
 module.exports = { register, login, getMe, getAllUsers, toggleUserActive };

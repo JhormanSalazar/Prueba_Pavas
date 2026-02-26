@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MECANICO
+}
+
+enum ItemType {
+  MANO_OBRA
+  REPUESTO
+}
+
+// ─── Modelos ────────────────────────────────────────────────
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(100)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role         Role     @default(MECANICO)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  statusChanges WorkOrderStatusHistory[]
+
+  @@map("users")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  email     String?  @db.VarChar(100)
+  phone     String?  @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  motos Moto[]
+
+  @@map("clients")
+}
+
+model Moto {
+  id        Int      @id @default(autoincrement())
+  placa     String   @unique @db.VarChar(20)
+  marca     String   @db.VarChar(50)
+  modelo    String?  @db.VarChar(50)
+  clientId  Int      @map("client_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client     Client      @relation(fields: [clientId], references: [id])
+  workOrders WorkOrder[]
+
+  @@map("motos")
+}
+
+model WorkOrder {
+  id               Int      @id @default(autoincrement())
+  motoId           Int      @map("moto_id")
+  faultDescription String   @map("fault_description") @db.Text
+  estado           String   @default("RECIBIDA") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  moto          Moto                    @relation(fields: [motoId], references: [id])
+  items         WorkOrderItem[]
+  statusHistory WorkOrderStatusHistory[]
+
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id          Int      @id @default(autoincrement())
+  workOrderId Int      @map("work_order_id")
+  type        ItemType
+  description String   @db.VarChar(255)
+  count       Decimal  @db.Decimal(10, 2)
+  unitValue   Decimal  @map("unit_value") @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@map("work_order_items")
+}
+
+model WorkOrderStatusHistory {
+  id              Int      @id @default(autoincrement())
+  workOrderId     Int      @map("work_order_id")
+  fromStatus      String   @map("from_status") @db.VarChar(20)
+  toStatus        String   @map("to_status") @db.VarChar(20)
+  note            String?  @db.Text
+  changedByUserId Int      @map("changed_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  changedBy User      @relation(fields: [changedByUserId], references: [id])
+
+  @@map("work_order_status_history")
+}
