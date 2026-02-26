@@ -1,30 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ordersApi } from '../../api/orders.api';
+import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../shared/StatusBadge';
 import StatusActions from './StatusActions';
 import ItemsList from './ItemsList';
 import AddItemForm from './AddItemForm';
+import StatusHistory from './StatusHistory';
 import PageLoader from '../shared/PageLoader';
 import { formatCurrency } from '../../utils/formatters';
 
-const OrderDetail = ({ orderId, onBack }) => {
+const OrderDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [order, setOrder]   = useState(null);
   const [error, setError]   = useState(null);
 
   const fetchOrder = useCallback(async () => {
     try {
-      const res = await ordersApi.getById(orderId);
+      const res = await ordersApi.getById(id);
       setOrder(res.data);
     } catch {
       setError('No se pudo cargar la orden.');
     }
-  }, [orderId]);
+  }, [id]);
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
-  const handleChangeStatus = async (newStatus) => {
+  const handleChangeStatus = async (newStatus, note) => {
     try {
-      await ordersApi.changeStatus(orderId, newStatus);
+      await ordersApi.changeStatus(id, newStatus, note);
       fetchOrder();
     } catch (err) {
       alert(err.response?.data?.error ?? 'Error al cambiar estado.');
@@ -32,7 +39,7 @@ const OrderDetail = ({ orderId, onBack }) => {
   };
 
   const handleAddItem = async (item) => {
-    await ordersApi.addItem(orderId, item);
+    await ordersApi.addItem(id, item);
     fetchOrder();
   };
 
@@ -43,7 +50,7 @@ const OrderDetail = ({ orderId, onBack }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <button onClick={() => navigate('/')} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
           ← Volver
         </button>
         <h2 className="text-xl font-bold text-gray-800">
@@ -61,7 +68,11 @@ const OrderDetail = ({ orderId, onBack }) => {
 
       {/* Cambio de estado */}
       <Section title="Cambiar estado">
-        <StatusActions currentStatus={order.estado} onChangeStatus={handleChangeStatus} />
+        <StatusActions
+          currentStatus={order.estado}
+          userRole={user?.role}
+          onChangeStatus={handleChangeStatus}
+        />
       </Section>
 
       {/* Ítems */}
@@ -72,6 +83,11 @@ const OrderDetail = ({ orderId, onBack }) => {
       {/* Agregar ítem */}
       <Section title="Agregar ítem">
         <AddItemForm onAddItem={handleAddItem} />
+      </Section>
+
+      {/* Historial de cambios */}
+      <Section title="Historial de Cambios">
+        <StatusHistory orderId={id} />
       </Section>
     </div>
   );

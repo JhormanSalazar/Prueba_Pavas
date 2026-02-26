@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ordersApi } from '../../api/orders.api';
 
-const CreateOrderForm = ({ onSubmit, onCancel }) => {
+const CreateOrderForm = () => {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     placa: '',
     faultDescription: ''
@@ -11,13 +15,19 @@ const CreateOrderForm = ({ onSubmit, onCancel }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.placa || !formData.faultDescription) {
       alert('Por favor completa todos los campos');
       return;
     }
-    onSubmit(formData);
+
+    try {
+      await ordersApi.create(formData);
+      navigate('/');
+    } catch (err) {
+      alert(err.response?.data?.error ?? 'Error al crear la orden.');
+    }
   };
 
   return (
@@ -55,7 +65,7 @@ const CreateOrderForm = ({ onSubmit, onCancel }) => {
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => navigate('/')}
             className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
           >
             Cancelar

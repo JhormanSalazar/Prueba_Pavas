@@ -1,55 +1,82 @@
-import { useState } from 'react';
-import { useOrders } from './hooks/useOrders';
-import OrderList from './components/OrderList/OrderList';
-import OrderDetail from './components/OrderDetail/OrderDetail';
-import CreateOrderForm from './components/OrderList/CreateOrderForm';
-import PageLoader from './components/shared/PageLoader';
-import { ordersApi } from './api/orders.api';
+import { Routes, Route, Link, Navigate } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import ProtectedRoute from "./components/shared/ProtectedRoute";
+import PageLoader from "./components/shared/PageLoader";
+import Login from "./components/Login/Login";
+import OrderListPage from "./components/OrderList/OrderList";
+import OrderDetail from "./components/OrderDetail/OrderDetail";
+import CreateOrderForm from "./components/OrderList/CreateOrderForm";
+import UserList from "./components/Users/UserList";
+import CreateUserForm from "./components/Users/CreateUserForm";
 
 function App() {
-  const { orders, loading, error, refetch } = useOrders();
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const { user, loading, logout } = useAuth();
 
-  const openDetail = (id) => setSelectedOrderId(id);
-  const closeDetail = () => { setSelectedOrderId(null); refetch(); };
-
-  const handleCreateOrder = async (data) => {
-    try {
-      await ordersApi.create(data);
-      setShowCreateForm(false);
-      refetch();
-    } catch (err) {
-      alert(err.response?.data?.error ?? 'Error al crear la orden.');
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <PageLoader />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-        <h1 className="text-lg font-bold text-gray-800">🔧 Taller de Motos</h1>
-      </header>
+      {user && (
+        <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <Link to="/" className="text-lg font-bold text-gray-800 hover:text-gray-600 transition-colors">
+              Taller de Motos
+            </Link>
+
+            <div className="flex items-center gap-4">
+              {user.role === "ADMIN" && (
+                <Link
+                  to="/users"
+                  className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Gestión de Usuarios
+                </Link>
+              )}
+
+              <span className="text-sm text-gray-500">
+                {user.name}{" "}
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                  {user.role}
+                </span>
+              </span>
+
+              <button
+                onClick={logout}
+                className="text-sm text-red-500 hover:text-red-700 transition-colors font-medium"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {loading && <PageLoader />}
-        {error   && <p className="text-red-500 text-center">{error}</p>}
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        {!loading && !error && (
-          selectedOrderId ? (
-            <OrderDetail orderId={selectedOrderId} onBack={closeDetail} />
-          ) : showCreateForm ? (
-            <CreateOrderForm 
-              onSubmit={handleCreateOrder} 
-              onCancel={() => setShowCreateForm(false)} 
-            />
-          ) : (
-            <OrderList 
-              orders={orders} 
-              onDetail={openDetail} 
-              onCreateClick={() => setShowCreateForm(true)} 
-            />
-          )
-        )}
+          {/* Rutas protegidas - cualquier usuario autenticado */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<OrderListPage />} />
+            <Route path="/orders/new" element={<CreateOrderForm />} />
+            <Route path="/orders/:id" element={<OrderDetail />} />
+          </Route>
+
+          {/* Rutas protegidas - solo ADMIN */}
+          <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
+            <Route path="/users" element={<UserList />} />
+            <Route path="/users/new" element={<CreateUserForm />} />
+          </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
     </div>
   );
