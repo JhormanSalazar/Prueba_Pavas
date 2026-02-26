@@ -158,13 +158,22 @@ const changeOrderStatus = async (id, newStatus, user, note) => {
   return findOrderById(id);
 };
 
+const BLOCKED_STATES_FOR_ITEMS = ["LISTA", "ENTREGADA", "CANCELADA"];
+
 const addItemToOrder = async (id, { type, description, count, unitValue }) => {
   const order = await prisma.workOrder.findUnique({
     where: { id: Number(id) },
-    select: { id: true },
+    select: { id: true, estado: true },
   });
 
   if (!order) throw { status: 404, message: "Orden no encontrada" };
+
+  if (BLOCKED_STATES_FOR_ITEMS.includes(order.estado)) {
+    throw {
+      status: 400,
+      message: `No se pueden agregar ítems a una orden en estado ${order.estado}`,
+    };
+  }
 
   if (!type || !description || count == null || unitValue == null) {
     throw { status: 400, message: "Todos los campos del ítem son requeridos" };

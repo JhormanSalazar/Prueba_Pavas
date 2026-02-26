@@ -1,5 +1,32 @@
 const prisma = require("../lib/prisma");
 
+const getCatalog = async () => {
+  const items = await prisma.workOrderItem.findMany({
+    select: {
+      type: true,
+      description: true,
+      unitValue: true,
+    },
+    orderBy: { description: "asc" },
+  });
+
+  // Deduplicate by type+description, keeping latest unitValue
+  const map = new Map();
+  for (const item of items) {
+    const key = `${item.type}::${item.description.trim().toLowerCase()}`;
+    // Last one wins (already sorted, but we keep the last seen value)
+    map.set(key, {
+      type: item.type,
+      description: item.description,
+      unitValue: Number(item.unitValue),
+    });
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    a.description.localeCompare(b.description)
+  );
+};
+
 const getAll = async () => {
   return prisma.workOrderItem.findMany({
     include: { workOrder: { select: { id: true, estado: true } } },
@@ -65,4 +92,4 @@ const remove = async (id) => {
   return prisma.workOrderItem.delete({ where: { id: Number(id) } });
 };
 
-module.exports = { getAll, getById, create, update, remove };
+module.exports = { getCatalog, getAll, getById, create, update, remove };

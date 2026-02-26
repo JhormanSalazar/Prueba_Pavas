@@ -6,4 +6,5 @@ export const itemsApi = {
   create: (data) => api.post("/api/items", data),
   update: (id, data) => api.put(`/api/items/${id}`, data),
   remove: (id) => api.delete(`/api/items/${id}`),
+  getCatalog: () => api.get("/api/items/catalog"),
 };

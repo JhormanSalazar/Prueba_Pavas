@@ -41,8 +41,8 @@ const OrderDetail = () => {
   };
 
   const handleAddItem = async (item) => {
-    await ordersApi.addItem(id, item);
-    fetchOrder();
+    const res = await ordersApi.addItem(id, item);
+    setOrder(res.data);
   };
 
   if (error)  return <p className="text-red-500">{error}</p>;
@@ -82,10 +82,12 @@ const OrderDetail = () => {
         <ItemsList items={order.items} />
       </Section>
 
-      {/* Agregar ítem */}
-      <Section title="Agregar ítem">
-        <AddItemForm onAddItem={handleAddItem} />
-      </Section>
+      {/* Agregar ítem — solo si la orden no está en estado final o LISTA */}
+      {!['LISTA', 'ENTREGADA', 'CANCELADA'].includes(order.estado) && (
+        <Section title="Agregar ítem">
+          <AddItemForm onAddItem={handleAddItem} />
+        </Section>
+      )}
 
       {/* Historial de cambios */}
       <Section title="Historial de Cambios">

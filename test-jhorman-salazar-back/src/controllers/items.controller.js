@@ -1,5 +1,14 @@
 const itemsService = require("../services/items.service");
 
+const getCatalog = async (req, res, next) => {
+  try {
+    const catalog = await itemsService.getCatalog();
+    res.json(catalog);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getAll = async (req, res, next) => {
   try {
     const items = await itemsService.getAll();
@@ -45,4 +54,4 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove };
+module.exports = { getCatalog, getAll, getById, create, update, remove };
