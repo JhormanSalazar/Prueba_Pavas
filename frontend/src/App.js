@@ -1,16 +1,27 @@
-import { Routes, Route, Link, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import PageLoader from "./components/shared/PageLoader";
+import Sidebar from "./components/shared/Sidebar";
 import Login from "./components/Login/Login";
 import OrderListPage from "./components/OrderList/OrderList";
 import OrderDetail from "./components/OrderDetail/OrderDetail";
 import CreateOrderForm from "./components/OrderList/CreateOrderForm";
 import UserList from "./components/Users/UserList";
 import CreateUserForm from "./components/Users/CreateUserForm";
+import ClienteList from "./components/Clientes/ClienteList";
+import CreateClienteForm from "./components/Clientes/CreateClienteForm";
+import EditClienteForm from "./components/Clientes/EditClienteForm";
+import MotoList from "./components/Motos/MotoList";
+import CreateMotoForm from "./components/Motos/CreateMotoForm";
+import EditMotoForm from "./components/Motos/EditMotoForm";
+import ItemList from "./components/Items/ItemList";
+import CreateItemForm from "./components/Items/CreateItemForm";
+import EditItemForm from "./components/Items/EditItemForm";
+import EstadoList from "./components/Estados/EstadoList";
 
 function App() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -20,63 +31,52 @@ function App() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {user && (
-        <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <Link to="/" className="text-lg font-bold text-gray-800 hover:text-gray-600 transition-colors">
-              Taller de Motos
-            </Link>
-
-            <div className="flex items-center gap-4">
-              {user.role === "ADMIN" && (
-                <Link
-                  to="/users"
-                  className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  Gestión de Usuarios
-                </Link>
-              )}
-
-              <span className="text-sm text-gray-500">
-                {user.name}{" "}
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                  {user.role}
-                </span>
-              </span>
-
-              <button
-                onClick={logout}
-                className="text-sm text-red-500 hover:text-red-700 transition-colors font-medium"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
-          </div>
-        </header>
-      )}
-
-      <main className="max-w-4xl mx-auto px-4 py-8">
+  // Login page (no sidebar)
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/login" element={<Login />} />
-
-          {/* Rutas protegidas - cualquier usuario autenticado */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<OrderListPage />} />
-            <Route path="/orders/new" element={<CreateOrderForm />} />
-            <Route path="/orders/:id" element={<OrderDetail />} />
-          </Route>
-
-          {/* Rutas protegidas - solo ADMIN */}
-          <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
-            <Route path="/users" element={<UserList />} />
-            <Route path="/users/new" element={<CreateUserForm />} />
-          </Route>
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar />
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <Routes>
+            {/* Rutas protegidas - cualquier usuario autenticado */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<OrderListPage />} />
+              <Route path="/orders/new" element={<CreateOrderForm />} />
+              <Route path="/orders/:id" element={<OrderDetail />} />
+            </Route>
+
+            {/* Rutas protegidas - solo ADMIN */}
+            <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
+              <Route path="/admin/usuarios" element={<UserList />} />
+              <Route path="/admin/usuarios/new" element={<CreateUserForm />} />
+              <Route path="/admin/clientes" element={<ClienteList />} />
+              <Route path="/admin/clientes/new" element={<CreateClienteForm />} />
+              <Route path="/admin/clientes/:id/edit" element={<EditClienteForm />} />
+              <Route path="/admin/motos" element={<MotoList />} />
+              <Route path="/admin/motos/new" element={<CreateMotoForm />} />
+              <Route path="/admin/motos/:id/edit" element={<EditMotoForm />} />
+              <Route path="/admin/items" element={<ItemList />} />
+              <Route path="/admin/items/new" element={<CreateItemForm />} />
+              <Route path="/admin/items/:id/edit" element={<EditItemForm />} />
+              <Route path="/admin/estados" element={<EstadoList />} />
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </main>
     </div>
   );

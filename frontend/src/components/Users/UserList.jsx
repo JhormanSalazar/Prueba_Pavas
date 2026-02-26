@@ -47,7 +47,7 @@ const UserList = () => {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Gestión de Usuarios</h1>
         <button
-          onClick={() => navigate("/users/new")}
+          onClick={() => navigate("/admin/usuarios/new")}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <span>+</span> Nuevo Usuario

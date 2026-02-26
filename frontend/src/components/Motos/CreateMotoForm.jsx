@@ -1,18 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { authApi } from "../../api/auth.api";
+import { motosApi } from "../../api/motos.api";
+import { clientesApi } from "../../api/clientes.api";
+import PageLoader from "../shared/PageLoader";
 
-const CreateUserForm = () => {
+const CreateMotoForm = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "MECANICO",
+    placa: "",
+    marca: "",
+    modelo: "",
+    clientId: "",
   });
+  const [clientes, setClientes] = useState([]);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchClientes = async () => {
+      try {
+        const res = await clientesApi.getAll();
+        setClientes(res.data);
+      } catch {
+        setError("No se pudieron cargar los clientes.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClientes();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,27 +40,32 @@ const CreateUserForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
-      setError("Por favor completa todos los campos.");
+    if (!formData.placa || !formData.marca || !formData.clientId) {
+      setError("Por favor completa todos los campos obligatorios.");
       return;
     }
 
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
 
     try {
-      await authApi.register(formData);
-      navigate("/admin/usuarios");
+      await motosApi.create({
+        ...formData,
+        clientId: Number(formData.clientId),
+      });
+      navigate("/admin/motos");
     } catch (err) {
-      setError(err.response?.data?.error ?? "Error al crear el usuario.");
+      setError(err.response?.data?.error ?? "Error al crear la moto.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  if (loading) return <PageLoader />;
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm max-w-md mx-auto">
-      <h2 className="text-lg font-bold text-gray-800 mb-4">Nuevo Usuario</h2>
+      <h2 className="text-lg font-bold text-gray-800 mb-4">Nueva Moto</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -51,67 +75,69 @@ const CreateUserForm = () => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Placa</label>
           <input
             type="text"
-            name="name"
-            value={formData.name}
+            name="placa"
+            value={formData.placa}
             onChange={handleChange}
-            placeholder="Nombre completo"
+            placeholder="ABC-123"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Correo electrónico
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
           <input
-            type="email"
-            name="email"
-            value={formData.email}
+            type="text"
+            name="marca"
+            value={formData.marca}
             onChange={handleChange}
-            placeholder="correo@ejemplo.com"
+            placeholder="Yamaha, Honda, Suzuki..."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
           <input
-            type="password"
-            name="password"
-            value={formData.password}
+            type="text"
+            name="modelo"
+            value={formData.modelo}
             onChange={handleChange}
-            placeholder="••••••••"
+            placeholder="FZ 2.0, CBR 250..."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
           <select
-            name="role"
-            value={formData.role}
+            name="clientId"
+            value={formData.clientId}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-white"
           >
-            <option value="MECANICO">Mecánico</option>
-            <option value="ADMIN">Administrador</option>
+            <option value="">Seleccionar cliente...</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creando..." : "Crear Usuario"}
+            {submitting ? "Creando..." : "Crear Moto"}
           </button>
           <button
             type="button"
-            onClick={() => navigate("/users")}
+            onClick={() => navigate("/admin/motos")}
             className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
           >
             Cancelar
@@ -122,4 +148,4 @@ const CreateUserForm = () => {
   );
 };
 
-export default CreateUserForm;
+export default CreateMotoForm;
